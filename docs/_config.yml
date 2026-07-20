@@ -1,4 +1,4 @@
-title: Cash Application Foundry
+title: Uniquely
 description: Automate cash application and AR reconciliation with AI. Process 35 transactions in 56 seconds instead of 6 hours.
 author: Vinay Gangidi
 email: vinay.gangidi@gmail.com
@@ -6,7 +6,7 @@ email: vinay.gangidi@gmail.com
 theme: jekyll-theme-minimal
 
 # GitHub Pages settings
-repository: vinaygangidi/cash-application-foundry
+repository: vinaygangidi/cash-reconciliation-codex
 github_user: vinaygangidi
 
 # Build settings

@@ -3,11 +3,11 @@ layout: default
 title: Home
 ---
 
-# Cash Application Foundry
+# Uniquely
 
 Automate cash application and accounts receivable reconciliation with AI. Process 35 transactions in 56 seconds instead of 6 hours.
 
-**Live Demo:** [cash-application-foundry.vercel.app](https://cash-application-foundry.vercel.app)
+**Project:** Uniquely — AR cash reconciliation
 
 ---
 
@@ -66,6 +66,6 @@ Start: [Quick Visual Guide](QUICK_VISUAL_GUIDE.md) → [How It Works](how-it-wor
 
 ## Repository
 
-[GitHub: vinaygangidi/cash-application-foundry](https://github.com/vinaygangidi/cash-application-foundry)
+[GitHub: vinaygangidi/cash-reconciliation-codex](https://github.com/vinaygangidi/cash-reconciliation-codex)
 
 Author: Vinay Gangidi

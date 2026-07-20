@@ -3,7 +3,7 @@ layout: default
 title: Implementation Guide
 ---
 
-# Cash Application Foundry - Implementation Guide
+# Uniquely - Implementation Guide
 
 Complete guide for setup, configuration, API reference, and troubleshooting.
 
@@ -17,8 +17,8 @@ Complete guide for setup, configuration, API reference, and troubleshooting.
 ### Backend Setup
 
 1. Clone the repository
-   git clone https://github.com/vinaygangidi/cash-application-foundry.git
-   cd cash-application-foundry
+   git clone https://github.com/vinaygangidi/cash-reconciliation-codex.git
+   cd cash-reconciliation-codex
 
 2. Set up Python environment
    cd backend
@@ -72,7 +72,7 @@ USE_FIXTURES
 
 AZURE_AI_ENDPOINT
   Type: string
-  Purpose: Azure AI Foundry endpoint URL
+  Purpose: OpenAI API endpoint URL
   Example: https://your-resource.services.ai.azure.com
   Required for: Live Azure mode
 
@@ -178,7 +178,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "service": "cash-application-foundry",
+  "service": "uniquely",
   "azure_blob_storage": true,
   "azure_app_insights": true,
   "use_fixtures": false,
@@ -444,10 +444,10 @@ Documentation:
 - Quick Visual: docs/QUICK_VISUAL_GUIDE.md
 
 GitHub Repository:
-https://github.com/vinaygangidi/cash-application-foundry
+https://github.com/vinaygangidi/cash-reconciliation-codex
 
 Issues & Questions:
-Report at: github.com/vinaygangidi/cash-application-foundry/issues
+Report at: github.com/vinaygangidi/cash-reconciliation-codex/issues
 
 ## Testing Checklist
 

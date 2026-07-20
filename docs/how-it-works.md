@@ -3,13 +3,13 @@ layout: default
 title: How It Works
 ---
 
-# How Cash Application Foundry Works: A Complete Step-by-Step Guide
+# How Uniquely Works: A Complete Step-by-Step Guide
 
 This guide explains what happens inside the system when you click "Run Cash Application". Written for non-technical stakeholders.
 
 ## The Big Picture
 
-When you use Cash Application Foundry, here's what happens:
+When you use Uniquely, here's what happens:
 
 ```
 YOU (User)
@@ -93,7 +93,7 @@ data: {"event": "ready"}
 
 The connection is established and active.
 
-## PHASE 3: The 5-Agent Pipeline (Azure AI Foundry)
+## PHASE 3: The 5-Agent Pipeline (OpenAI GPT-5.6)
 
 Five AI agents run in sequence (one after another). Each one gets the output of the previous agent.
 
@@ -537,7 +537,7 @@ Key: SSE (Server-Sent Events)
 - Backend can push updates without frontend asking
 - Perfect for showing live progress
 
-### Backend to Azure AI Foundry Communication
+### Backend to OpenAI API Communication
 
 ```
 Backend (FastAPI)              Azure OpenAI Service (LLM Models)
@@ -722,7 +722,7 @@ Backend (FastAPI):
 - Job: Orchestrate the 5-agent pipeline
 - Receives your request
 - Manages SSE streaming connection
-- Calls Azure AI Foundry for each agent
+- Calls the OpenAI API for each model-assisted agent
 - Collects outputs
 - Saves to Blob Storage
 - Sends results back to frontend
@@ -732,7 +732,7 @@ Hosted on: Railway (Docker container)
 Port: 8001 (backend server)
 Language: Python 3.11
 
-Azure AI Foundry (LLM Models):
+OpenAI API (GPT-5.6):
 - Job: Run the AI agents
 - Agent 1: GPT-4o-mini (normalize)
 - Agent 2: GPT-4o-mini (build lookups)

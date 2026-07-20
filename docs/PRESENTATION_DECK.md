@@ -1,4 +1,4 @@
-# Cash Application Foundry - 10-Slide Presentation Deck
+# Uniquely - 10-Slide Presentation Deck
 
 Build this deck in PowerPoint, Google Slides, or Keynote using the content below.
 
@@ -16,19 +16,19 @@ Build this deck in PowerPoint, Google Slides, or Keynote using the content below
 
 ### Content:
 
-**Title:** Cash Application Foundry
+**Title:** Uniquely
 
 **Subtitle:** AI Agents for Enterprise AR Reconciliation
 
 **Body Text:**
 Process 35 transactions in 60 seconds. Replace 6 hours of manual work.
-Built on Microsoft Azure AI Foundry.
+Built with OpenAI GPT-5.6.
 
 **Bottom:**
 Microsoft Build AI Hackathon 2026
 Agent Swarms Track
 
-Live Demo: cash-application-foundry.vercel.app
+Project: Uniquely
 
 ### Design Notes:
 - Use Microsoft Blue as primary color
@@ -370,13 +370,12 @@ Showcases Copilot ecosystem integration
 The Team:
 Vinay Gangidi
 Focused on enterprise AI, multi-agent systems, finance automation
-Built on Azure AI Foundry, real-time streaming, audit compliance
+Built with OpenAI GPT-5.6, real-time streaming, audit compliance
 Email: vinay.gangidi@gmail.com
 
 Next Steps:
-Live Demo: cash-application-foundry.vercel.app
-GitHub: github.com/vinaygangidi/cash-application-foundry
-Architecture: vinaygangidi.github.io/cash-application-foundry/architecture.html
+GitHub: github.com/vinaygangidi/cash-reconciliation-codex
+Architecture: see this repository's docs directory
 
 Key Closing Message:
 2.3 Trillion dollars in annual AR.
@@ -403,7 +402,7 @@ Slides 9-10: Roadmap and call to action (45 seconds)
 ### Speaking Points for Each Slide:
 
 Slide 1: 30 seconds
-"This is Cash Application Foundry. We automate accounts receivable reconciliation using AI agents. We process 35 edge case patterns in 60 seconds. Built entirely on Microsoft Azure."
+"This is Uniquely. We automate accounts receivable reconciliation using AI agents. We process real-world edge-case patterns with OpenAI GPT-5.6."
 
 Slide 2: 45 seconds
 "Every company selling on credit matches bank deposits to invoices. The problem is that this requires judgment. Show the four examples: freight deductions, name truncation, factoring, legal holds. These are not one-time edge cases. Finance teams see these patterns constantly."
@@ -473,7 +472,7 @@ Slide 10: 45 seconds
 4. Copy content from each slide section
 5. Add design elements (icons, charts, colors)
 6. Use Microsoft Fluent Design System fonts (Segoe UI or Arial)
-7. Export as PDF (CashApplicationFoundry_Deck.pdf)
+7. Export as PDF (Uniquely_Deck.pdf)
 8. File size should be well under 20 MB
 
 ## TIPS FOR DELIVERY

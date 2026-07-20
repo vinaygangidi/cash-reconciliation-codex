@@ -3,11 +3,11 @@ layout: default
 title: System Design
 ---
 
-# Cash Application Foundry - System Design
+# Uniquely - System Design
 
 ## Architecture Overview
 
-This document describes the system design of the Cash Application Foundry, a 5-agent AI pipeline that processes bank statements and accounts receivable data to automate cash application and reconciliation.
+This document describes the system design of Uniquely, a 5-agent AI pipeline that processes bank statements and accounts receivable data to automate cash application and reconciliation.
 
 ---
 
@@ -113,7 +113,7 @@ This document describes the system design of the Cash Application Foundry, a 5-a
 │                      EXTERNAL SERVICES (Azure)                         │
 │                                                                         │
 │  ┌───────────────────────────┐  ┌──────────────────────────────────┐  │
-│  │ Azure AI Foundry          │  │ Azure Blob Storage               │  │
+│  │ OpenAI GPT-5.6            │  │ Local SQLite audit trail          │  │
 │  │ (OpenAI-compatible API)   │  │ • Run inputs (bank statement)   │  │
 │  │                           │  │ • Agent outputs                 │  │
 │  │ • GPT-4o-mini             │  │ • Final results                 │  │
@@ -519,7 +519,7 @@ For each unmatched transaction, determine:
 - **Deployment:** Railway (Docker)
 
 ### Azure Services
-1. **Azure AI Foundry** (OpenAI-compatible API)
+1. **OpenAI API** (GPT-5.6)
    - Model routing per agent
    - Token budgets per agent
    - Streaming token output
@@ -799,7 +799,7 @@ data: [DONE]
 
 ## Summary
 
-The Cash Application Foundry is a **5-agent AI pipeline** running on Azure AI Foundry and deployed to Railway + Vercel. Each agent is a specialist:
+Uniquely is a **5-agent AI pipeline** using the OpenAI API. Each agent is a specialist:
 
 1. **Bank Statement Parser** (GPT-4o-mini) → normalize transactions + detect flags
 2. **AR Ledger Builder** (GPT-4o-mini) → build lookup structures
