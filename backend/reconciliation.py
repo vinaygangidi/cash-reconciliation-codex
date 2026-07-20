@@ -130,7 +130,9 @@ async def run_pipeline(run_id, bank, ledger, audit):
         if "HOLD" in (payment.get("note","")+payment["remittance"]).upper(): decision={"route":"compliance_hold","confidence":1,"reason":"Compliance hold: deterministic policy blocked posting."}
         elif verified and verified[0][2]>=.95:
             source=" via GPT-5.6 entity resolution" if entity["resolved_entity"] else ""
-            decision={"route":"auto_post","confidence":verified[0][2],"reason":f"Auto-posted: verified {verified[0][0]} allocation{source}."}
+            fallback=f"Auto-posted: verified {verified[0][0]} allocation{source}."
+            decision={"route":"auto_post","confidence":verified[0][2],
+                      "reason":decision["reason"] if os.getenv("OPENAI_API_KEY") else fallback}
         await audit.append(run_id,"exception_reasoning","route_decided",{"txn_id":payment["txn_id"],**decision})
         match=verified[0] if decision["route"]=="auto_post" and verified else None
         posting={"transaction_id":payment["txn_id"],"route":decision["route"],"confidence":decision["confidence"],
