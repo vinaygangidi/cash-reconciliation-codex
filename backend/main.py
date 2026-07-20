@@ -1,4 +1,6 @@
 import json
+import logging
+import os
 import uuid
 from pathlib import Path
 
@@ -10,8 +12,29 @@ from dotenv import load_dotenv
 
 from reconciliation import AuditLog, run_pipeline
 
-load_dotenv()
 ROOT = Path(__file__).parent
+ENV_FILE = ROOT / ".env"
+# Uvicorn configures this logger at INFO, so the masked startup diagnostic is visible.
+logger = logging.getLogger("uvicorn.error")
+
+
+def load_openai_key() -> tuple[str, str]:
+    """Load the local key while preserving a non-empty process environment key."""
+    existing = os.getenv("OPENAI_API_KEY", "").strip()
+    load_dotenv(dotenv_path=ENV_FILE, override=not bool(existing))
+    key = os.getenv("OPENAI_API_KEY", "").strip()
+    return key, "process environment" if existing else str(ENV_FILE)
+
+
+OPENAI_API_KEY, OPENAI_KEY_SOURCE = load_openai_key()
+
+
+def masked_key_status(key: str) -> str:
+    if not key:
+        return "not detected"
+    return f"detected ({key[:3]}…{key[-4:]}, {len(key)} characters)"
+
+
 audit = AuditLog(ROOT / "data" / "audit.sqlite3")
 app = FastAPI(title="AR Reconciliation Copilot")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -28,6 +51,7 @@ def sample_data(sample: str):
 @app.on_event("startup")
 async def init_audit():
     await audit.initialize()
+    logger.info("OPENAI_API_KEY %s; source=%s", masked_key_status(OPENAI_API_KEY), OPENAI_KEY_SOURCE)
 
 @app.get("/health")
 async def health():
