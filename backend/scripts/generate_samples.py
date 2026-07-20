@@ -300,7 +300,10 @@ bank={
          "remittance_text":"INV-04-007","note":"Post-acquisition name: Momentum Global Inc. is the former name of Crestview Solutions Corp (CUST-04-007) prior to 2024-03 acquisition."},
         {"txn_id":"TXN-04-007","date":"2024-07-24","amount":28000.00,"currency":"USD",
          "payment_type":"ACH","payer_raw":"CLEARFIELD TRADING LTD","bank_reference":"ACH20240724007",
-         "remittance_text":"INV-04-008","note":"Exact match: clean payment"}
+         "remittance_text":"INV-04-008","note":"Exact match: clean payment"},
+        {"txn_id":"TXN-04-008","date":"2024-07-29","amount":12750.00,"currency":"USD",
+         "payment_type":"ACH","payer_raw":"PAYMENT PROCESSING 123","bank_reference":"ACH20240729008",
+         "remittance_text":"monthly transfer","note":"UNIDENTIFIED PAYER: Generic bank descriptor with no known customer alias, invoice reference, or remittance evidence. Route to analyst review; do not post."}
     ]
 },
 ar={

@@ -62,20 +62,21 @@ class AutoPostSafetyTests(unittest.TestCase):
 
         self.assertEqual(decision["route"], "review")
 
-    def test_generic_sample_payer_has_no_deterministic_match_and_is_review_only(self):
-        sample = ROOT / "data" / "samples" / "sample_06"
-        bank = json.loads((sample / "bank_statement.json").read_text())
-        ledger = json.loads((sample / "open_ar.json").read_text())
-        payment = next(p for p in bank["transactions"] if p["txn_id"] == "TXN-06-009")
+    def test_generic_sample_payers_have_no_deterministic_match_and_are_review_only(self):
+        for sample_id, transaction_id in (("04", "TXN-04-008"), ("06", "TXN-06-009")):
+            sample = ROOT / "data" / "samples" / f"sample_{sample_id}"
+            bank = json.loads((sample / "bank_statement.json").read_text())
+            ledger = json.loads((sample / "open_ar.json").read_text())
+            payment = next(p for p in bank["transactions"] if p["txn_id"] == transaction_id)
 
-        matches = candidates(normalized_payment(payment), normalized_invoices(ledger))
-        decision = enforce_auto_post_safety(
-            {"route": "auto_post", "confidence": .99, "reason": "unsafe model output"},
-            matches,
-        )
+            matches = candidates(normalized_payment(payment), normalized_invoices(ledger))
+            decision = enforce_auto_post_safety(
+                {"route": "auto_post", "confidence": .99, "reason": "unsafe model output"},
+                matches,
+            )
 
-        self.assertEqual(matches, [])
-        self.assertEqual(decision["route"], "review")
+            self.assertEqual(matches, [])
+            self.assertEqual(decision["route"], "review")
 
 
 class PipelineStageTests(unittest.IsolatedAsyncioTestCase):

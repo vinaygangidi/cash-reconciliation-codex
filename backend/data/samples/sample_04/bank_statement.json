@@ -80,6 +80,17 @@
       "bank_reference": "ACH20240724007",
       "remittance_text": "INV-04-008",
       "note": "Exact match: clean payment"
+    },
+    {
+      "txn_id": "TXN-04-008",
+      "date": "2024-07-29",
+      "amount": 12750.0,
+      "currency": "USD",
+      "payment_type": "ACH",
+      "payer_raw": "PAYMENT PROCESSING 123",
+      "bank_reference": "ACH20240729008",
+      "remittance_text": "monthly transfer",
+      "note": "UNIDENTIFIED PAYER: Generic bank descriptor with no known customer alias, invoice reference, or remittance evidence. Route to analyst review; do not post."
     }
   ]
 }

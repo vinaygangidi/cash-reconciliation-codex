@@ -7,6 +7,7 @@ from pathlib import Path
 from openai import AsyncOpenAI
 
 CENT = Decimal("0.01")
+MODEL_TIMEOUT_SECONDS = 20.0
 STAGES = ["normalize", "ledger_index", "match", "exception_reasoning", "posting"]
 def amount(value): return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
 def name(value): return re.sub(r"\b(INC|LLC|LTD|CORP|CO|THE)\b", "", re.sub(r"[^A-Z0-9 ]", "", value.upper())).strip()
@@ -73,9 +74,10 @@ async def resolve_entity(payment, catalog):
         "known_entities": catalog,
         "task": "Resolve the payer to exactly one supplied entity only when evidence supports it. Consider truncation, DBA/alias, parent/subsidiary, and factoring intermediary relationships. Return JSON: resolved_entity (or null), relationship (direct|dba_alias|parent_paying|factoring_intermediary|unresolved), confidence (0..1), rationale (one short analyst-readable sentence). Calibrate confidence: 0.90-1.00 only for exact or documented ledger evidence; 0.60-0.89 for plausible but incomplete evidence; 0.00-0.35 when unresolved, generic, or weak. Never invent an entity."
     }
-    response = await AsyncOpenAI().responses.create(model="gpt-5.6", input=json.dumps(prompt),
-        text={"format":{"type":"json_object"}})
     try:
+        response = await AsyncOpenAI(timeout=MODEL_TIMEOUT_SECONDS, max_retries=0).responses.create(
+            model="gpt-5.6", input=json.dumps(prompt), text={"format":{"type":"json_object"}}
+        )
         result = parse_json(response.output_text)
         if not result: raise ValueError("empty JSON")
         allowed = {c["customer_name"] for c in catalog}
@@ -136,9 +138,10 @@ async def reason(payment, verified, entity):
       "entity_resolution":entity,
       "candidates":[{"strategy":s,"invoice_ids":[i["invoice_id"] for i in group],"confidence":c} for s,group,c in verified],
       "instruction":"Return JSON with route (auto_post|review|dispute|compliance_hold), confidence (0..1), and rationale. Write one short analyst-readable rationale for this final route. Recommend auto_post only when a supplied candidate is a high-confidence, code-verified allocation. Do not invent amounts or invoice IDs."}
-    response=await AsyncOpenAI().responses.create(model="gpt-5.6",input=json.dumps(prompt),
-      text={"format":{"type":"json_object"}})
     try:
+        response=await AsyncOpenAI(timeout=MODEL_TIMEOUT_SECONDS, max_retries=0).responses.create(
+          model="gpt-5.6",input=json.dumps(prompt),text={"format":{"type":"json_object"}}
+        )
         result=parse_json(response.output_text)
         if not result: raise ValueError("empty JSON")
         return {"route":result.get("route","review"),"confidence":float(result.get("confidence",.4)),
