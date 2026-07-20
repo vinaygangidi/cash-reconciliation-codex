@@ -6,8 +6,11 @@ const label={normalize:"Normalize payments",ledger_index:"Index open AR",match:"
 const stageDetail={normalize:"Deterministic + GPT-5.6",ledger_index:"Deterministic code",match:"Deterministic code",exception_reasoning:"GPT-5.6 + safety policy",posting:"Deterministic code"};
 const money=(n,c="USD")=>new Intl.NumberFormat("en-US",{style:"currency",currency:c}).format(Number(n));
 export default function Home(){
- const [data,setData]=useState(null),[done,setDone]=useState([]),[out,setOut]=useState([]),[run,setRun]=useState(""),[busy,setBusy]=useState(false);
- useEffect(()=>{const sample=new URLSearchParams(window.location.search).get("sample")||"04";fetch(`${API}/demo-data?sample=${sample}`).then(x=>x.json()).then(setData)},[]);
+ const [data,setData]=useState(null),[samples,setSamples]=useState([]),[sample,setSample]=useState("04"),[done,setDone]=useState([]),[out,setOut]=useState([]),[run,setRun]=useState(""),[busy,setBusy]=useState(false);
+ useEffect(()=>{const requested=new URLSearchParams(window.location.search).get("sample");if(requested)setSample(requested)},[]);
+ useEffect(()=>{fetch(`${API}/samples`).then(x=>x.ok?x.json():Promise.reject(new Error("Unable to load samples"))).then(x=>setSamples(x.samples||[])).catch(()=>setSamples([]))},[]);
+ useEffect(()=>{let cancelled=false;setData(null);setDone([]);setOut([]);setRun("");fetch(`${API}/demo-data?sample=${sample}`).then(x=>x.ok?x.json():Promise.reject(new Error("Unable to load sample"))).then(x=>{if(!cancelled)setData(x)}).catch(()=>{if(!cancelled)setData(null)});return()=>{cancelled=true}},[sample]);
+ function chooseSample(event){const next=event.target.value;const url=new URL(window.location.href);url.searchParams.set("sample",next);window.history.replaceState({},"",url);setSample(next)}
  async function reconcile(){if(!data)return;setBusy(true);setDone([]);setOut([]);
   const r=await fetch(`${API}/analyze`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bank_data:data.bank_statement,ar_data:data.open_ar})});
   const reader=r.body.getReader();let buf="";while(true){const {value,done:closed}=await reader.read();if(closed)break;buf+=new TextDecoder().decode(value);const parts=buf.split("\n\n");buf=parts.pop();for(const p of parts){if(!p.startsWith("data: ")||p==="data: [DONE]")continue;const e=JSON.parse(p.slice(6));setRun(e.run_id||run);if(e.event==="stage")setDone(v=>v.includes(e.stage)?v:[...v,e.stage]);if(e.event==="stage"&&e.output)setOut(v=>[...v,e.output]);}}setBusy(false)}
@@ -20,7 +23,7 @@ export default function Home(){
  return <main>
   <header className="hero">
    <div><div className="hero-tags"><p className="eyebrow">OpenAI · GPT-5.6</p><span className="build-badge">Built for OpenAI Build Week — Codex + GPT-5.6</span></div><h1>AR Reconciliation<br/>Copilot</h1><p className="subtitle">Verified matching, with human-safe exception routing.</p></div>
-   <button disabled={busy||!data} onClick={reconcile}><i>{busy?"◌":"↗"}</i>{busy?"Running pipeline…":"Run synthetic demo"}</button>
+   <div className="hero-actions"><label className="sample-picker"><span>Demo dataset</span><select value={sample} onChange={chooseSample} disabled={busy||!samples.length} aria-label="Choose a demo dataset">{samples.map(item=><option key={item.sample_id} value={item.sample_id}>{item.sample_id} — {item.label}</option>)}</select></label><button disabled={busy||!data} onClick={reconcile}><i>{busy?"◌":"↗"}</i>{busy?"Running pipeline…":"Run synthetic demo"}</button></div>
   </header>
   <section className="pipeline" aria-label="Reconciliation pipeline">{stages.map((s,i)=><div className={`stage ${done.includes(s)?"on":""}`} key={s}><b>{done.includes(s)?"✓":String(i+1).padStart(2,"0")}</b><div><strong>{label[s]}</strong><small>{stageDetail[s]}</small></div></div>)}</section>
   <section className="comparison-head"><div><p className="section-kicker">Reconciliation workspace</p><h2>Payments, resolved.</h2></div><p>{busy?"Streaming agent decisions in real time.":"Run the sample pipeline to see each verified decision."}</p></section>
