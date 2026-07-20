@@ -38,6 +38,40 @@ class AuditLog:
             return [{"id":r[0],"created_at":r[1],"stage":r[2],"action":r[3],"payload":json.loads(r[4])} for r in rows]
         return await asyncio.to_thread(read)
 
+def entity_catalog(ledger, invoices):
+    aliases = ledger.get("aliases", {}) or ledger.get("payer_aliases", {}) or {}
+    customers = {}
+    for invoice in invoices:
+        customers.setdefault(invoice["customer_name"], {"customer_name": invoice["customer_name"], "customer_id": invoice.get("customer_id"), "aliases": []})
+    for alias, target in aliases.items():
+        if isinstance(target, str):
+            for customer in customers.values():
+                if target in (customer["customer_name"], customer["customer_id"]):
+                    customer["aliases"].append(alias)
+    return list(customers.values())
+
+async def resolve_entity(payment, catalog):
+    """GPT-5.6 judges entity identity; it is restricted to ledger-supplied candidates."""
+    if not os.getenv("OPENAI_API_KEY"):
+        return {"resolved_entity": None, "relationship": "unresolved", "confidence": .0,
+                "rationale": "No API key: entity identity left unresolved for safe deterministic demo."}
+    prompt = {
+        "raw_payer": payment["payer_raw"], "remittance": payment["remittance"],
+        "known_entities": catalog,
+        "task": "Resolve the payer to exactly one supplied entity only when evidence supports it. Consider truncation, DBA/alias, parent/subsidiary, and factoring intermediary relationships. Return JSON: resolved_entity (or null), relationship (direct|dba_alias|parent_paying|factoring_intermediary|unresolved), confidence (0..1), rationale (one short analyst-readable sentence). Never invent an entity."
+    }
+    response = await AsyncOpenAI().responses.create(model="gpt-5.6", input=json.dumps(prompt),
+        text={"format":{"type":"json_object"}})
+    try:
+        result = json.loads(response.output_text)
+        allowed = {c["customer_name"] for c in catalog}
+        if result.get("resolved_entity") not in allowed: result["resolved_entity"] = None
+        return {"resolved_entity": result.get("resolved_entity"), "relationship": result.get("relationship", "unresolved"),
+                "confidence": float(result.get("confidence", 0)), "rationale": result.get("rationale", "No rationale returned.")}
+    except Exception:
+        return {"resolved_entity": None, "relationship": "unresolved", "confidence": .0,
+                "rationale": "Entity-resolution response was not valid JSON."}
+
 def candidates(payment, invoices):
     refs=payment["remittance"].upper()
     possible=[i for i in invoices if i["currency"]==payment["currency"] and i["status"]=="OPEN"]
@@ -56,15 +90,19 @@ def candidates(payment, invoices):
                 choices.append(("multi_invoice",list(group),.97))
     return sorted(choices,key=lambda c:c[2],reverse=True)
 
-async def reason(payment, verified):
+async def reason(payment, verified, entity):
     if not os.getenv("OPENAI_API_KEY"):
         return {"route":"review","confidence":.45,"reason":"No API key: safe demo review route."}
     prompt={"payment":{k:str(v) for k,v in payment.items()},
+      "entity_resolution":entity,
       "candidates":[{"strategy":s,"invoice_ids":[i["invoice_id"] for i in group],"confidence":c} for s,group,c in verified],
-      "instruction":"Return JSON with route (auto_post|review|dispute|compliance_hold), confidence (0..1), and reason. Do not invent amounts or invoice IDs."}
+      "instruction":"Return JSON with route (auto_post|review|dispute|compliance_hold), confidence (0..1), and rationale. Write one short analyst-readable rationale for this final route. Do not invent amounts or invoice IDs."}
     response=await AsyncOpenAI().responses.create(model="gpt-5.6",input=json.dumps(prompt),
       text={"format":{"type":"json_object"}})
-    try: return json.loads(response.output_text)
+    try:
+        result=json.loads(response.output_text)
+        return {"route":result.get("route","review"),"confidence":float(result.get("confidence",.4)),
+                "reason":result.get("rationale","No analyst rationale returned.")}
     except Exception: return {"route":"review","confidence":.4,"reason":"Model output was not valid JSON."}
 
 async def run_pipeline(run_id, bank, ledger, audit):
@@ -75,20 +113,28 @@ async def run_pipeline(run_id, bank, ledger, audit):
     yield evt("normalize","complete",count=len(payments))
     yield evt("ledger_index","started")
     invoices=[{**i,"open_amount":amount(i["open_amount"]),"currency":i.get("currency","USD"),"payer":name(i["customer_name"])} for i in ledger.get("invoices",[])]
+    catalog=entity_catalog(ledger,invoices)
     await audit.append(run_id,"ledger_index","invoices_indexed",{"count":len(invoices)})
     yield evt("ledger_index","complete",count=len(invoices))
     postings=[]
     for payment in payments:
+        entity=await resolve_entity(payment,catalog)
+        if entity["resolved_entity"]:
+            payment["payer"]=name(entity["resolved_entity"])
+        await audit.append(run_id,"normalize","entity_resolved",{"txn_id":payment["txn_id"],**entity})
+        yield evt("normalize","entity_resolved",transaction_id=payment["txn_id"],entity=entity)
         verified=candidates(payment,invoices)
         await audit.append(run_id,"match","candidates_verified",{"txn_id":payment["txn_id"],"count":len(verified)})
         yield evt("match","complete",transaction_id=payment["txn_id"],candidates=len(verified))
-        decision=await reason(payment,verified)
-        if "HOLD" in (payment.get("note","")+payment["remittance"]).upper(): decision={"route":"compliance_hold","confidence":1,"reason":"Deterministic compliance policy."}
-        elif verified and verified[0][2]>=.95: decision={"route":"auto_post","confidence":verified[0][2],"reason":"Verified exact Decimal allocation."}
+        decision=await reason(payment,verified,entity)
+        if "HOLD" in (payment.get("note","")+payment["remittance"]).upper(): decision={"route":"compliance_hold","confidence":1,"reason":"Compliance hold: deterministic policy blocked posting."}
+        elif verified and verified[0][2]>=.95:
+            source=" via GPT-5.6 entity resolution" if entity["resolved_entity"] else ""
+            decision={"route":"auto_post","confidence":verified[0][2],"reason":f"Auto-posted: verified {verified[0][0]} allocation{source}."}
         await audit.append(run_id,"exception_reasoning","route_decided",{"txn_id":payment["txn_id"],**decision})
         match=verified[0] if decision["route"]=="auto_post" and verified else None
         posting={"transaction_id":payment["txn_id"],"route":decision["route"],"confidence":decision["confidence"],
-          "reason":decision["reason"],"amount":str(payment["amount"]),"currency":payment["currency"],
+          "reason":decision["reason"],"entity_resolution":entity,"amount":str(payment["amount"]),"currency":payment["currency"],
           "invoice_ids":[i["invoice_id"] for i in match[1]] if match else [],
           "allocation_verified":bool(match and sum((i["open_amount"] for i in match[1]),Decimal("0"))==payment["amount"])}
         await audit.append(run_id,"posting","posting_instruction",posting); postings.append(posting)
