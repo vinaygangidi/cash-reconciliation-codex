@@ -1,3 +1,17 @@
+main .source-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+main .results-section{margin-top:18px}
+main .ledger .table-wrap{max-height:480px;overflow:auto}
+main .ledger table{min-width:620px}
+main .customer,main .aliases{display:block}
+main .customer{font-weight:650;color:#344054}
+main .aliases{max-width:240px;margin-top:4px;color:#667085;font-size:10px;line-height:1.4}
+main .flag-list{display:flex;flex-wrap:wrap;gap:4px;min-width:100px}
+main mark.flag{padding:3px 6px;border:0;border-radius:999px;background:#f2f4f7;color:#475467;font-size:9px;font-weight:700;line-height:1;text-transform:capitalize}
+main mark.flag.dispute{background:#fff3d6;color:#a15c00}
+main mark.flag.on_hold,main mark.flag.legal_hold{background:#fee9e7;color:#b42318}
+main mark.flag.factoring,main mark.flag.parent_payer,main mark.flag.intercompany{background:#e9f5f1;color:#087b5b}
+@media(max-width:900px){main .source-panels{grid-template-columns:1fr}}
+
 /* Keep rich posting decisions visible without sacrificing their supporting evidence. */
 main .result-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;padding:10px}
 main .result{min-width:0;border:1px solid #edf0f2;border-radius:10px}
