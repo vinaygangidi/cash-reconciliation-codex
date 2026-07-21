@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from reconciliation import AuditLog, amount, amount_facts, candidates, deterministic_policy, enforce_auto_post_safety, name, reason, resolve_entity, run_pipeline
+from reconciliation import AuditLog, amount, amount_facts, candidates, canonical_entity_name, deterministic_policy, enforce_auto_post_safety, entity_catalog, name, reason, resolve_entity, run_pipeline
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -190,6 +190,20 @@ class EntityResolutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["resolved_entity"], "Nexus Midwest LLC")
         self.assertEqual(result["confidence"], 0.99)
         self.assertIn("Nexus Parent Corp is the documented parent payer", result["rationale"])
+
+
+class EntityCatalogAuditTests(unittest.TestCase):
+    def test_every_documented_name_in_all_samples_maps_to_a_canonical_customer(self):
+        audited_names = 0
+        for sample in sorted((ROOT / "data" / "samples").glob("sample_*")):
+            ledger = json.loads((sample / "open_ar.json").read_text())
+            catalog = entity_catalog(ledger, normalized_invoices(ledger))
+            for customer in catalog:
+                self.assertEqual(canonical_entity_name(customer["customer_name"], catalog), customer["customer_name"])
+                for documented_name in customer["aliases"]:
+                    self.assertEqual(canonical_entity_name(documented_name, catalog), customer["customer_name"], f"{sample.name}: {documented_name}")
+                    audited_names += 1
+        self.assertGreater(audited_names, 0)
 
 
 class EdgeCaseCoverageTests(unittest.TestCase):
