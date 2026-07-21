@@ -1,10 +1,11 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from reconciliation import AuditLog, amount, amount_facts, candidates, deterministic_policy, enforce_auto_post_safety, name, run_pipeline
+from reconciliation import AuditLog, amount, amount_facts, candidates, deterministic_policy, enforce_auto_post_safety, name, reason, run_pipeline
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +81,40 @@ class AutoPostSafetyTests(unittest.TestCase):
 
 
 class PipelineStageTests(unittest.IsolatedAsyncioTestCase):
+    async def test_routing_payload_excludes_unallowlisted_sensitive_fields(self):
+        class FakeResponses:
+            input_payload = None
+
+            async def create(self, **kwargs):
+                self.input_payload = kwargs["input"]
+                return type("Response", (), {"output_text": '{"route":"review","confidence":0.4,"rationale":"test"}'})()
+
+        class FakeClient:
+            def __init__(self):
+                self.responses = FakeResponses()
+
+        payment = {
+            "txn_id": "TXN-PRIVACY-001", "payer_raw": "Example Payer",
+            "remittance_text": "INV-123", "amount": amount("100.00"),
+            "currency": "USD", "payment_type": "ACH", "note": "test",
+            "statement_date": "2026-07-20", "payer": "EXAMPLE PAYER",
+            "remittance": "INV-123", "account_number": "123456789",
+            "routing_number": "987654321", "tax_id": "12-3456789",
+        }
+        client = FakeClient()
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), patch("reconciliation.AsyncOpenAI", return_value=client):
+            await reason(payment, [], {"resolved_entity": None}, [])
+
+        sent_payment = json.loads(client.responses.input_payload)["payment"]
+        self.assertEqual(set(sent_payment), {
+            "txn_id", "payer_raw", "remittance_text", "amount", "currency",
+            "payment_type", "note", "statement_date", "payer", "remittance",
+        })
+        self.assertNotIn("account_number", sent_payment)
+        self.assertNotIn("routing_number", sent_payment)
+        self.assertNotIn("tax_id", sent_payment)
+
     async def test_exception_stage_completes_after_all_postings(self):
         sample = ROOT / "data" / "samples" / "sample_01"
         bank = json.loads((sample / "bank_statement.json").read_text())

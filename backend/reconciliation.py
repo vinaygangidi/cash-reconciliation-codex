@@ -9,6 +9,10 @@ from openai import AsyncOpenAI
 CENT = Decimal("0.01")
 MODEL_TIMEOUT_SECONDS = 20.0
 STAGES = ["normalize", "ledger_index", "match", "exception_reasoning", "posting"]
+ROUTING_PAYMENT_FIELDS = (
+    "txn_id", "payer_raw", "remittance_text", "amount", "currency",
+    "payment_type", "note", "statement_date", "payer", "remittance",
+)
 logger = logging.getLogger("uvicorn.error")
 def amount(value): return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
 def name(value): return re.sub(r"\b(INC|LLC|LTD|CORP|CO|THE)\b", "", re.sub(r"[^A-Z0-9 ]", "", value.upper())).strip()
@@ -231,7 +235,11 @@ def enforce_auto_post_safety(decision, verified):
 async def reason(payment, verified, entity, facts=None):
     if not os.getenv("OPENAI_API_KEY"):
         return {"route":"review","confidence":.45,"reason":"No API key: safe demo review route."}
-    prompt={"payment":{k:str(v) for k,v in payment.items()},
+    # Never pass arbitrary upstream payment keys to the model. New integration
+    # fields (for example account_number, routing_number, or tax_id) stay local
+    # unless deliberately added to this reviewed allowlist.
+    model_payment = {field: str(payment[field]) for field in ROUTING_PAYMENT_FIELDS if field in payment}
+    prompt={"payment":model_payment,
       "entity_resolution":entity,
       "deterministic_amount_facts":facts or [],
       "candidates":[{"strategy":s,"invoice_ids":[i["invoice_id"] for i in group],"confidence":c} for s,group,c in verified],

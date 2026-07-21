@@ -145,6 +145,29 @@ The original category counts total 34 scenarios. All are represented with synthe
 
 Live server logs emit masked GPT-5.6 call/response events with a transaction ID, masked payer preview, relationship or route, and confidence. They exclude full payer names, remittance, prompts, response bodies, and secrets.
 
+## Data privacy
+
+### Data sent to GPT-5.6 today
+
+There are two model calls in `backend/reconciliation.py`. Their payloads are deliberately different and are constrained by code.
+
+| Call | Fields sent |
+| --- | --- |
+| `resolve_entity()` | `raw_payer`, `remittance`, and a ledger-grounded `known_entities` catalog. Each catalog entry contains only `customer_name`, `customer_id`, `aliases`, `relationships`, and `ledger_notes`. The prompt also contains static resolution instructions. |
+| `reason()` | A fixed payment allowlist: `txn_id`, `payer_raw`, `remittance_text`, `amount`, `currency`, `payment_type`, `note`, `statement_date`, `payer`, and `remittance`; plus the prior `entity_resolution` output; deterministic amount facts (`invoice_id`, `kind`, `delta`, and, for FX facts, `expected_amount` and `actual_amount`); verified candidates (`strategy`, `invoice_ids`, `confidence`); and static routing instructions. |
+
+`reason()` does **not** serialize the payment object wholesale. `ROUTING_PAYMENT_FIELDS` is the allowlist enforced before the request is created. Consequently, fields such as `account_number`, `routing_number`, and `tax_id` are not forwarded even if an upstream integration adds them to the input schema. `PipelineStageTests.test_routing_payload_excludes_unallowlisted_sensitive_fields` injects all three fields and asserts that the captured GPT-5.6 payload omits them.
+
+The model does not receive full ledger or full invoice records, including invoice `open_amount` values. Entity resolution receives the limited identity catalog described above; routing receives only invoice IDs and narrowly scoped, code-derived facts. In particular, the model can see payment amount and selected deterministic deltas or FX expected/actual amounts needed to explain a route, but it does not perform allocation math.
+
+### OpenAI API data handling
+
+OpenAI states that API inputs and outputs are not used to train or improve OpenAI models by default unless an organization explicitly opts in. See [OpenAI API data controls](https://platform.openai.com/docs/models/default-usage-policies-by-endpoint) and [OpenAI business-data privacy](https://openai.com/business-data/). This is an OpenAI platform policy; it does not replace Ledger Sense's own data-minimization and contractual obligations.
+
+### Enterprise privacy controls still required
+
+The current demo enforces the routing payment allowlist and uses masked server logs, but it is not a complete enterprise privacy implementation. A production deployment should additionally obtain appropriate zero-retention contractual terms where eligible, choose approved private-network/VPC and data-residency options, and implement structured audit logging for every model call (request metadata, policy version, model, result metadata, and access controls) without recording unnecessary sensitive prompt content. The existing masked Railway logs provide partial call/response observability only; they are not a complete, durable per-call audit record.
+
 ## Deployment architecture
 
 ```text
