@@ -1,9 +1,9 @@
 ---
 layout: default
-title: Uniquely documentation
+title: Ledger Sense documentation
 ---
 
-# Uniquely documentation
+# Ledger Sense documentation
 
 The current system reference is [Architecture](ARCHITECTURE.md). It documents the implemented GPT-5.6, deterministic matching, hard-gate, SSE, audit, sample-coverage, and deployment behavior.
 

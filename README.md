@@ -1,4 +1,4 @@
-# Uniquely
+# Ledger Sense
 
 An OpenAI/GPT-5.6 demo that reconciles synthetic bank payments against open AR and produces auditable posting instructions.
 

@@ -36,7 +36,7 @@ def masked_key_status(key: str) -> str:
 
 
 audit = AuditLog(ROOT / "data" / "audit.sqlite3")
-app = FastAPI(title="AR Reconciliation Copilot")
+app = FastAPI(title="Ledger Sense")
 
 
 def cors_origins() -> list[str]:
@@ -68,7 +68,7 @@ async def init_audit():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "ar-reconciliation-copilot",
+    return {"status": "ok", "service": "ledger-sense",
             "model": "gpt-5.6", "audit": "append-only SQLite",
             "sample_count": len(list((ROOT / "data" / "samples").glob("sample_*")))}
 

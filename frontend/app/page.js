@@ -22,7 +22,7 @@ export default function Home(){
  const nettingCustomers=new Set((ledger.intercompany_netting||[]).filter(item=>item.net_agreement_active).map(item=>item.customer_id));
  return <main>
   <header className="hero">
-   <div><div className="hero-tags"><p className="eyebrow">OpenAI · GPT-5.6</p><span className="build-badge">Built for OpenAI Build Week — Codex + GPT-5.6</span></div><h1>AR Reconciliation<br/>Copilot</h1><p className="subtitle">Verified matching, with human-safe exception routing.</p></div>
+   <div><div className="hero-tags"><p className="eyebrow">OpenAI · GPT-5.6</p><span className="build-badge">Built for OpenAI Build Week — Codex + GPT-5.6</span></div><h1>Ledger<br/>Sense</h1><p className="subtitle">Verified matching, with human-safe exception routing.</p></div>
    <div className="hero-actions"><label className="sample-picker"><span>Demo dataset</span><select value={sample} onChange={chooseSample} disabled={busy||!samples.length} aria-label="Choose a demo dataset">{samples.map(item=><option key={item.sample_id} value={item.sample_id}>{item.sample_id} — {item.label}</option>)}</select></label><button disabled={busy||!data} onClick={reconcile}><i>{busy?"◌":"↗"}</i>{busy?"Running pipeline…":"Run synthetic demo"}</button></div>
   </header>
   <section className="pipeline" aria-label="Reconciliation pipeline">{stages.map((s,i)=><div className={`stage ${done.includes(s)?"on":""}`} key={s}><b>{done.includes(s)?"✓":String(i+1).padStart(2,"0")}</b><div><strong>{label[s]}</strong><small>{stageDetail[s]}</small></div></div>)}</section>

@@ -1,4 +1,4 @@
-# Uniquely - 10-Slide Presentation Deck
+# Ledger Sense - 10-Slide Presentation Deck
 
 Build this deck in PowerPoint, Google Slides, or Keynote using the content below.
 
@@ -16,7 +16,7 @@ Build this deck in PowerPoint, Google Slides, or Keynote using the content below
 
 ### Content:
 
-**Title:** Uniquely
+**Title:** Ledger Sense
 
 **Subtitle:** AI Agents for Enterprise AR Reconciliation
 
@@ -28,7 +28,7 @@ Built with OpenAI GPT-5.6.
 Microsoft Build AI Hackathon 2026
 Agent Swarms Track
 
-Project: Uniquely
+Project: Ledger Sense
 
 ### Design Notes:
 - Use Microsoft Blue as primary color
@@ -402,7 +402,7 @@ Slides 9-10: Roadmap and call to action (45 seconds)
 ### Speaking Points for Each Slide:
 
 Slide 1: 30 seconds
-"This is Uniquely. We automate accounts receivable reconciliation using AI agents. We process real-world edge-case patterns with OpenAI GPT-5.6."
+"This is Ledger Sense. We automate accounts receivable reconciliation using AI agents. We process real-world edge-case patterns with OpenAI GPT-5.6."
 
 Slide 2: 45 seconds
 "Every company selling on credit matches bank deposits to invoices. The problem is that this requires judgment. Show the four examples: freight deductions, name truncation, factoring, legal holds. These are not one-time edge cases. Finance teams see these patterns constantly."
@@ -472,7 +472,7 @@ Slide 10: 45 seconds
 4. Copy content from each slide section
 5. Add design elements (icons, charts, colors)
 6. Use Microsoft Fluent Design System fonts (Segoe UI or Arial)
-7. Export as PDF (Uniquely_Deck.pdf)
+7. Export as PDF (LedgerSense_Deck.pdf)
 8. File size should be well under 20 MB
 
 ## TIPS FOR DELIVERY

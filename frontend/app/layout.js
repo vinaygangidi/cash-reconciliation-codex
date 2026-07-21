@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "AR Reconciliation Copilot",
+  title: "Ledger Sense",
   description: "Auditable AR reconciliation with GPT-5.6",
 };
 

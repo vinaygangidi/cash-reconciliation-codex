@@ -3,7 +3,7 @@ layout: default
 title: Implementation Guide
 ---
 
-# Uniquely - Implementation Guide
+# Ledger Sense - Implementation Guide
 
 Complete guide for setup, configuration, API reference, and troubleshooting.
 
@@ -178,7 +178,7 @@ Response:
 ```json
 {
   "status": "ok",
-  "service": "uniquely",
+  "service": "ledger-sense",
   "azure_blob_storage": true,
   "azure_app_insights": true,
   "use_fixtures": false,

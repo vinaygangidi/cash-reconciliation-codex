@@ -3,11 +3,11 @@ layout: default
 title: System Design
 ---
 
-# Uniquely - System Design
+# Ledger Sense - System Design
 
 ## Architecture Overview
 
-This document describes the system design of Uniquely, a 5-agent AI pipeline that processes bank statements and accounts receivable data to automate cash application and reconciliation.
+This document describes the system design of Ledger Sense, a 5-agent AI pipeline that processes bank statements and accounts receivable data to automate cash application and reconciliation.
 
 ---
 
@@ -799,7 +799,7 @@ data: [DONE]
 
 ## Summary
 
-Uniquely is a **5-agent AI pipeline** using the OpenAI API. Each agent is a specialist:
+Ledger Sense is a **5-agent AI pipeline** using the OpenAI API. Each agent is a specialist:
 
 1. **Bank Statement Parser** (GPT-4o-mini) → normalize transactions + detect flags
 2. **AR Ledger Builder** (GPT-4o-mini) → build lookup structures

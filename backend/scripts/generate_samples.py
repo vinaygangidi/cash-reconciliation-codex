@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate 10 focused sample datasets for Uniquely.
+Generate 10 focused sample datasets for Ledger Sense.
 Each sample targets specific financial edge cases.
 Run from repo root: python backend/scripts/generate_samples.py
 """

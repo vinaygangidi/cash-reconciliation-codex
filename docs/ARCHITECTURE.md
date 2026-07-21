@@ -1,10 +1,10 @@
-# Uniquely Architecture
+# Ledger Sense Architecture
 
-This is the current technical reference for Uniquely. Its source of truth is the running code: `backend/reconciliation.py`, `backend/main.py`, and `frontend/app/page.js`. Historical narrative documents have been moved to [`archive/`](archive/) and must not be used for implementation decisions.
+This is the current technical reference for Ledger Sense. Its source of truth is the running code: `backend/reconciliation.py`, `backend/main.py`, and `frontend/app/page.js`. Historical narrative documents have been moved to [`archive/`](archive/) and must not be used for implementation decisions.
 
 ## System overview
 
-Uniquely is a reasoning layer for the ambiguous portion of AR cash application. It accepts synthetic bank payments and an Open AR ledger, verifies allocations with deterministic accounting code, uses GPT-5.6 for bounded entity and routing judgment, and records every decision in an append-only SQLite journal.
+Ledger Sense is a reasoning layer for the ambiguous portion of AR cash application. It accepts synthetic bank payments and an Open AR ledger, verifies allocations with deterministic accounting code, uses GPT-5.6 for bounded entity and routing judgment, and records every decision in an append-only SQLite journal.
 
 ```mermaid
 flowchart LR
@@ -197,4 +197,4 @@ This roadmap does not change the core allocation logic: deterministic code conti
 
 ## Positioning alongside ERP cash application
 
-SAP and Oracle Fusion already automate easy exact matches. Uniquely is not a replacement for an ERP ledger or workflow. It is a reasoning layer for the ambiguous minority of payments—factoring relationships, DBA aliases, truncated names, uncertain remittance, and similar cases—that otherwise enter a manual exception queue. It provides a grounded rationale and audit traceability while deterministic controls keep financial allocation and policy enforcement safe.
+SAP and Oracle Fusion already automate easy exact matches. Ledger Sense is not a replacement for an ERP ledger or workflow. It is a reasoning layer for the ambiguous minority of payments—factoring relationships, DBA aliases, truncated names, uncertain remittance, and similar cases—that otherwise enter a manual exception queue. It provides a grounded rationale and audit traceability while deterministic controls keep financial allocation and policy enforcement safe.

@@ -3,13 +3,13 @@ layout: default
 title: How It Works
 ---
 
-# How Uniquely Works: A Complete Step-by-Step Guide
+# How Ledger Sense Works: A Complete Step-by-Step Guide
 
 This guide explains what happens inside the system when you click "Run Cash Application". Written for non-technical stakeholders.
 
 ## The Big Picture
 
-When you use Uniquely, here's what happens:
+When you use Ledger Sense, here's what happens:
 
 ```
 YOU (User)

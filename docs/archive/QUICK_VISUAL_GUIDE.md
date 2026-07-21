@@ -3,7 +3,7 @@ layout: default
 title: Quick Visual Guide
 ---
 
-# Uniquely: Quick Visual Guide
+# Ledger Sense: Quick Visual Guide
 
 **A one-page visual explanation for non-technical people**
 
@@ -492,7 +492,7 @@ But real life is complex:
 
 ### **The Solution**
 ```
-🤖 Uniquely does this automatically:
+🤖 Ledger Sense does this automatically:
   
   Time: 56 seconds for 35 transactions
   Error rate: ~0% (code-verified math)
@@ -529,7 +529,7 @@ BEFORE (Manual Process):
 │ TOTAL TIME: 8+ hours | Cost: ~$300-400 in labor | Errors │
 └──────────────────────────────────────────────────────────┘
 
-WITH UNIQUELY:
+WITH LEDGER SENSE:
 ┌──────────────────────────────────────────────────────────┐
 │ 1. AR Analyst clicks "Load Demo Data"                    │
 │ 2. AR Analyst clicks "Run Cash Application"              │
