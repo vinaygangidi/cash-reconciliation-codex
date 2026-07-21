@@ -159,6 +159,21 @@ class EntityResolutionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result["resolved_entity"])
         self.assertEqual(result["confidence"], 0.05)
 
+    async def test_documented_alias_rationale_states_the_ledger_basis(self):
+        class FakeResponses:
+            async def create(self, **_):
+                return type("Response", (), {"output_text": '{"resolved_entity":"Global Cable Systems LLC","relationship":"dba_alias","confidence":0.99,"rationale":"Resolved to the canonical customer."}'})()
+
+        catalog = [{
+            "customer_name": "Global Cable Systems LLC", "customer_id": "CUST-09-004",
+            "aliases": ["CONTINENTAL WIRE & CABLE"], "relationships": ["ALIAS"], "ledger_notes": ["Known alias: Continental Wire & Cable"],
+        }]
+        client = type("FakeClient", (), {"responses": FakeResponses()})()
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), patch("reconciliation.AsyncOpenAI", return_value=client):
+            result = await resolve_entity({"txn_id": "TXN-09-004", "payer_raw": "CONTINENTAL WIRE & CABLE", "remittance": "INV-09-004"}, catalog)
+
+        self.assertIn("Ledger alias registry documents CONTINENTAL WIRE & CABLE as ALIAS for Global Cable Systems LLC.", result["rationale"])
+
 
 class EdgeCaseCoverageTests(unittest.TestCase):
     def sample(self, sample_id):

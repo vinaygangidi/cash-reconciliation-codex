@@ -70,6 +70,16 @@ def entity_catalog(ledger, invoices):
                 customer["relationships"].append("PARENT_PAYS_CHILD")
     return list(customers.values())
 
+def documented_alias_basis(raw_payer, resolved_entity, catalog):
+    """Return an exact ledger alias record; never infer a corporate relationship."""
+    for customer in catalog:
+        if customer["customer_name"] != resolved_entity:
+            continue
+        for alias, relationship in zip(customer["aliases"], customer["relationships"]):
+            if alias and name(alias) == name(raw_payer):
+                return alias, relationship
+    return None
+
 def parse_json(text):
     try: return json.loads(text)
     except Exception:
@@ -112,8 +122,13 @@ async def resolve_entity(payment, catalog):
             # while preserving the conservative review-only behavior.
             confidence = UNRESOLVED_ENTITY_CONFIDENCE
         logger.info("GPT-5.6 entity response: transaction_id=%s relationship=%s confidence=%d%%", payment.get("txn_id", "unknown"), relationship, round(confidence * 100))
+        rationale = result.get("rationale", "No rationale returned.")
+        alias_basis = documented_alias_basis(payment["payer_raw"], result.get("resolved_entity"), catalog)
+        if alias_basis:
+            alias, relationship_type = alias_basis
+            rationale = f"Ledger alias registry documents {alias} as {relationship_type} for {result['resolved_entity']}. {rationale}"
         return {"resolved_entity": result.get("resolved_entity"), "relationship": relationship,
-                "confidence": confidence, "rationale": result.get("rationale", "No rationale returned.")}
+                "confidence": confidence, "rationale": rationale}
     except Exception:
         return {"resolved_entity": None, "relationship": "unresolved", "confidence": .0,
                 "rationale": "Entity-resolution response was not valid JSON."}
