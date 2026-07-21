@@ -12,6 +12,7 @@ main .policy-grid>div:last-child{border-right:0}
 main .policy-grid strong{color:#344054;font-size:12px}
 main .policy-grid span{color:#667085;font-size:11px;line-height:1.45}
 main .date-cell{color:#475467;font-size:11px;white-space:nowrap}
+main .as-of{display:block;margin-top:5px;color:#667085;font-size:11px;font-weight:550}
 main .date-evidence{display:grid;gap:3px;margin-top:9px;padding:8px 9px;border:1px solid #f2ddb0;border-radius:7px;background:#fff9eb;color:#855800;font-size:11px;line-height:1.4}
 main .date-evidence strong{font-size:10px;letter-spacing:.04em;text-transform:uppercase}
 main .ledger .table-wrap{max-height:480px;overflow:auto}
