@@ -1,5 +1,5 @@
 """OpenAI-only AR reconciliation: deterministic accounting, model-assisted routing."""
-import asyncio, json, os, re, sqlite3
+import asyncio, json, logging, os, re, sqlite3
 from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from itertools import combinations
@@ -9,8 +9,15 @@ from openai import AsyncOpenAI
 CENT = Decimal("0.01")
 MODEL_TIMEOUT_SECONDS = 20.0
 STAGES = ["normalize", "ledger_index", "match", "exception_reasoning", "posting"]
+logger = logging.getLogger("uvicorn.error")
 def amount(value): return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
 def name(value): return re.sub(r"\b(INC|LLC|LTD|CORP|CO|THE)\b", "", re.sub(r"[^A-Z0-9 ]", "", value.upper())).strip()
+
+
+def masked_payer(payment):
+    """Keep demo logs useful without recording a full payer name."""
+    payer = re.sub(r"\s+", " ", payment.get("payer_raw", "").strip())
+    return f"{payer[:3]}… ({len(payer)} chars)" if payer else "<missing>"
 
 class AuditLog:
     def __init__(self, path: Path): self.path = path
@@ -75,6 +82,7 @@ async def resolve_entity(payment, catalog):
         "task": "Resolve the payer to exactly one supplied entity only when evidence supports it. Consider truncation, DBA/alias, parent/subsidiary, and factoring intermediary relationships. Return JSON: resolved_entity (or null), relationship (direct|dba_alias|parent_paying|factoring_intermediary|unresolved), confidence (0..1), rationale (one short analyst-readable sentence). Calibrate confidence: 0.90-1.00 only for exact or documented ledger evidence; 0.60-0.89 for plausible but incomplete evidence; 0.00-0.35 when unresolved, generic, or weak. Never invent an entity."
     }
     try:
+        logger.info("Calling GPT-5.6 for entity resolution: transaction_id=%s payer=%s", payment.get("txn_id", "unknown"), masked_payer(payment))
         response = await AsyncOpenAI(timeout=MODEL_TIMEOUT_SECONDS, max_retries=0).responses.create(
             model="gpt-5.6", input=json.dumps(prompt), text={"format":{"type":"json_object"}}
         )
@@ -95,6 +103,7 @@ async def resolve_entity(payment, catalog):
         confidence = float(result.get("confidence", 0))
         if result.get("resolved_entity") is None or relationship == "unresolved":
             confidence = min(confidence, .35)
+        logger.info("GPT-5.6 entity response: transaction_id=%s relationship=%s confidence=%d%%", payment.get("txn_id", "unknown"), relationship, round(confidence * 100))
         return {"resolved_entity": result.get("resolved_entity"), "relationship": relationship,
                 "confidence": confidence, "rationale": result.get("rationale", "No rationale returned.")}
     except Exception:
@@ -228,12 +237,16 @@ async def reason(payment, verified, entity, facts=None):
       "candidates":[{"strategy":s,"invoice_ids":[i["invoice_id"] for i in group],"confidence":c} for s,group,c in verified],
       "instruction":"Return JSON with route (auto_post|review|dispute|compliance_hold), confidence (0..1), and rationale. Write one short analyst-readable rationale for this final route. Recommend auto_post only when a supplied candidate is a high-confidence, code-verified allocation. Do not invent amounts or invoice IDs."}
     try:
+        logger.info("Calling GPT-5.6 for routing: transaction_id=%s verified_candidates=%d", payment.get("txn_id", "unknown"), len(verified))
         response=await AsyncOpenAI(timeout=MODEL_TIMEOUT_SECONDS, max_retries=0).responses.create(
           model="gpt-5.6",input=json.dumps(prompt),text={"format":{"type":"json_object"}}
         )
         result=parse_json(response.output_text)
         if not result: raise ValueError("empty JSON")
-        return {"route":result.get("route","review"),"confidence":float(result.get("confidence",.4)),
+        route=result.get("route","review")
+        confidence=float(result.get("confidence",.4))
+        logger.info("GPT-5.6 routing response: transaction_id=%s route=%s confidence=%d%%", payment.get("txn_id", "unknown"), route, round(confidence * 100))
+        return {"route":route,"confidence":confidence,
                 "reason":result.get("rationale","No analyst rationale returned.")}
     except Exception: return {"route":"review","confidence":.4,"reason":"Model output was not valid JSON."}
 
