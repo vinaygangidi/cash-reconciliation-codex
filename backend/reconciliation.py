@@ -13,6 +13,7 @@ ROUTING_PAYMENT_FIELDS = (
     "txn_id", "payer_raw", "remittance_text", "amount", "currency",
     "payment_type", "note", "statement_date", "payer", "remittance",
 )
+UNRESOLVED_ENTITY_CONFIDENCE = 0.05
 logger = logging.getLogger("uvicorn.error")
 def amount(value): return Decimal(str(value)).quantize(CENT, rounding=ROUND_HALF_UP)
 def name(value): return re.sub(r"\b(INC|LLC|LTD|CORP|CO|THE)\b", "", re.sub(r"[^A-Z0-9 ]", "", value.upper())).strip()
@@ -106,7 +107,10 @@ async def resolve_entity(payment, catalog):
         relationship = result.get("relationship", "unresolved")
         confidence = float(result.get("confidence", 0))
         if result.get("resolved_entity") is None or relationship == "unresolved":
-            confidence = min(confidence, .35)
+            # A successful but unresolved judgment has one canonical low score.
+            # This keeps identical generic-payer inputs from visually drifting
+            # while preserving the conservative review-only behavior.
+            confidence = UNRESOLVED_ENTITY_CONFIDENCE
         logger.info("GPT-5.6 entity response: transaction_id=%s relationship=%s confidence=%d%%", payment.get("txn_id", "unknown"), relationship, round(confidence * 100))
         return {"resolved_entity": result.get("resolved_entity"), "relationship": relationship,
                 "confidence": confidence, "rationale": result.get("rationale", "No rationale returned.")}

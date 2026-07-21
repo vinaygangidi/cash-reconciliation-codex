@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from reconciliation import AuditLog, amount, amount_facts, candidates, deterministic_policy, enforce_auto_post_safety, name, reason, run_pipeline
+from reconciliation import AuditLog, amount, amount_facts, candidates, deterministic_policy, enforce_auto_post_safety, name, reason, resolve_entity, run_pipeline
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -144,6 +144,20 @@ class PipelineStageTests(unittest.IsolatedAsyncioTestCase):
         self.assertLess(events.index(exception_complete[0]), len(events) - 1)
         first_posting = next(event["output"] for event in posting_events if event["transaction_id"] == "TXN-01-001")
         self.assertEqual(first_posting["route"], "review")
+
+
+class EntityResolutionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_successful_unresolved_entity_uses_canonical_low_confidence(self):
+        class FakeResponses:
+            async def create(self, **_):
+                return type("Response", (), {"output_text": '{"resolved_entity":null,"relationship":"unresolved","confidence":0.08,"rationale":"Generic payer."}'})()
+
+        client = type("FakeClient", (), {"responses": FakeResponses()})()
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), patch("reconciliation.AsyncOpenAI", return_value=client):
+            result = await resolve_entity({"txn_id": "TXN-ENTITY-001", "payer_raw": "PAYMENT PROCESSING 123", "remittance": ""}, [])
+
+        self.assertIsNone(result["resolved_entity"])
+        self.assertEqual(result["confidence"], 0.05)
 
 
 class EdgeCaseCoverageTests(unittest.TestCase):
