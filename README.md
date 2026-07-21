@@ -4,6 +4,8 @@ An OpenAI/GPT-5.6 demo that reconciles synthetic bank payments against open AR a
 
 **Live demo:** [frontend-jade-nu-15.vercel.app](https://frontend-jade-nu-15.vercel.app)
 
+**Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
 The production demo uses a hosted FastAPI backend. Its OpenAI key is stored only as a deployment environment variable; it is never committed to this repository.
 
 ## Why this isn't just another cash application module
@@ -39,6 +41,8 @@ The SQLite audit journal is append-only. Each input, candidate set, model decisi
 For the full current design, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The implementation source of truth is [`backend/reconciliation.py`](backend/reconciliation.py): it contains the five-stage async pipeline, deterministic matching, GPT-5.6 prompts, routing hard gates, and the append-only SQLite audit journal. [`backend/main.py`](backend/main.py) exposes the FastAPI/SSE endpoints, while [`frontend/app/page.js`](frontend/app/page.js) consumes SSE events and renders the input, ledger, and posting-decision views.
 
 The runtime flow is: **Next.js dashboard → `POST /analyze` → FastAPI SSE stream → five-agent pipeline → SQLite audit events → posting instructions displayed in the dashboard**. GPT-5.6 is used only for entity resolution and judgment/routing; code verifies all financial math and enforces the final safety controls.
+
+The demo uses SQLite for its inspectable append-only journal. [The architecture reference](docs/ARCHITECTURE.md#enterprise-production-target-state) also documents the enterprise target state: managed audit persistence, immutable retention, stateless workers, security controls, integrations, and operational resilience.
 
 ### Demo observability
 

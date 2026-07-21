@@ -159,6 +159,35 @@ Browser
 - The backend is deployed to Railway from `backend/`. Its Docker command binds Uvicorn to `0.0.0.0:$PORT`; `/health` is the health endpoint.
 - `OPENAI_API_KEY` exists only as a deployment environment variable. `CORS_ORIGINS` is a comma-separated allowlist containing the production frontend origin. Neither is committed.
 
+## Enterprise production target state
+
+The deployed demo intentionally keeps its append-only SQLite journal because it is simple, inspectable, and appropriate for a single-instance synthetic demonstration. It is not presented as the final enterprise persistence design: local container storage can be lost during replacement, and SQLite is not suitable for concurrent multi-instance write workloads or independently tamper-evident retention.
+
+An enterprise deployment should preserve the same deterministic/GPT-5.6/hard-gate pipeline while replacing the surrounding operational components:
+
+```text
+ERP / bank / remittance integrations
+  → authenticated ingestion API and validation queue
+  → stateless reconciliation workers
+       → GPT-5.6 through approved OpenAI controls
+       → managed relational audit store (append-only role + backups)
+       → immutable retention copy / WORM archive
+  → ERP posting workflow and human exception queue
+  → monitoring, alerting, reconciliation controls, and DR testing
+```
+
+| Concern | Enterprise target |
+| --- | --- |
+| Audit persistence | Managed relational database with a restricted append-only writer role, point-in-time recovery, encrypted backups, and an immutable retention copy |
+| Tamper evidence | Hash-chain or signed audit events, separate retention account, and access logs; database triggers alone are not sufficient |
+| Scale and resilience | Stateless API/worker instances, a durable queue for long runs, idempotency keys, retry/dead-letter handling, and tested disaster recovery |
+| Security | SSO, RBAC, least-privilege service identities, managed secrets, private networking, encryption in transit/at rest, and key rotation |
+| Financial controls | Segregation of duties, approval thresholds, ERP posting permissions, reconciliation reports, and period-close controls |
+| Integrations | Authenticated ERP, bank, EDI 820, sanctions-screening, and master-data connectors with schema validation and replay protection |
+| Operations | Centralized structured logs, metrics, tracing, alerting, data-retention policy, audit review workflow, and runbooks |
+
+This roadmap does not change the core allocation logic: deterministic code continues to verify money and hard gates continue to enforce policy, while GPT-5.6 remains limited to grounded entity resolution and exception judgment.
+
 ## Limitations
 
 - FX verification uses deterministic Python `Decimal`, not the hosted OpenAI Code Interpreter tool.
