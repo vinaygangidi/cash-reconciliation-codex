@@ -1,50 +1,41 @@
 # Ledger Sense Architecture
 
-This is the current technical reference for Ledger Sense. Its source of truth is the running code: `backend/reconciliation.py`, `backend/main.py`, and `frontend/app/page.js`. Historical narrative documents have been moved to [`archive/`](archive/) and must not be used for implementation decisions.
+This is the current technical reference for Ledger Sense. Its source of truth is the running code: `backend/reconciliation.py`, `backend/main.py`, and `frontend/app/page.js`.
 
 ## System overview
 
 Ledger Sense is a reasoning layer for the ambiguous portion of AR cash application. It accepts synthetic bank payments and an Open AR ledger, verifies allocations with deterministic accounting code, uses GPT-5.6 for bounded entity and routing judgment, and records every decision in an append-only SQLite journal.
 
-```mermaid
-flowchart LR
-    B["Bank payments"] --> N["1. Normalize payments\nDeterministic + GPT-5.6 entity resolution"]
-    L["Open AR ledger"] --> I["2. Index open AR\nDeterministic"]
-    N --> M["3. Verify candidates\nDeterministic Decimal math"]
-    I --> M
-    M --> R["4. Reason exceptions\nGPT-5.6 + deterministic safety policy"]
-    R --> P["5. Create postings\nDeterministic"]
-    N --> A[("Append-only SQLite audit")]
-    I --> A
-    M --> A
-    R --> A
-    P --> A
-    P --> S["SSE events → Next.js dashboard"]
-```
+The data flow is intentionally simple.
+
+1. Bank payments enter normalization. The Open AR ledger enters indexing.
+2. Normalized payments and the indexed ledger are used to verify candidate allocations.
+3. Verified candidates are passed to exception reasoning.
+4. The final safe route becomes a deterministic posting instruction.
+5. Every stage writes an append-only SQLite audit event. The final posting instruction is streamed to the Next.js dashboard through SSE.
 
 ## Five-agent breakdown
 
-| Agent | Inputs → outputs | Implementation | Boundary | Example |
+| Agent | Inputs and outputs | Implementation | Boundary | Example |
 | --- | --- | --- | --- | --- |
-| 1. Normalize payments | Raw transaction → normalized amount/currency/remittance plus resolved entity, relationship, confidence, rationale | `run_pipeline()`, `entity_catalog()`, `resolve_entity()` in `backend/reconciliation.py` | Deterministic normalization; GPT-5.6 chooses only from ledger-supplied entities | `TXN-04-005`: `T&R TRADING CO` resolves to the documented DBA for Thornton and Reed Enterprises |
-| 2. Index open AR | Ledger invoices, aliases, relationship registries → normalized invoice index and entity catalog | `run_pipeline()`, `entity_catalog()` | Deterministic | Sample 04 makes parent, factoring, and intercompany relationships available to later stages |
-| 3. Verify candidates | Normalized payment + indexed invoices → ordered, balanced candidate allocations and amount facts | `candidates()`, `amount_facts()`, `fx_verified()` | Deterministic `Decimal` math only | `TXN-01-002` is verified as a multi-invoice sum before any model routing |
-| 4. Reason exceptions | Grounded entity result + candidates + deterministic facts → route, confidence, analyst rationale | `reason()`, `deterministic_policy()`, `enforce_auto_post_safety()` | GPT-5.6 judges ambiguity; policy and safety enforcement are hard gates | `TXN-03-001` is compliance-held even if the model would otherwise recommend posting |
-| 5. Create postings | Final safe route + verified allocation → posting instruction and SSE result | `run_pipeline()` | Deterministic | `TXN-01-001` emits a posting only after the exact allocation is verified |
+| 1. Normalize payments | Raw transaction becomes normalized amount, currency, remittance, entity, relationship, confidence, and rationale | `run_pipeline()`, `entity_catalog()`, `resolve_entity()` in `backend/reconciliation.py` | Deterministic normalization. GPT-5.6 chooses only from ledger-supplied entities. | `TXN-04-005`: `T&R TRADING CO` resolves to the documented DBA for Thornton and Reed Enterprises |
+| 2. Index open AR | Ledger invoices, aliases, and relationship registries become an invoice index and entity catalog | `run_pipeline()`, `entity_catalog()` | Deterministic | Sample 04 makes parent, factoring, and intercompany relationships available to later stages |
+| 3. Verify candidates | Normalized payment and indexed invoices become ordered, balanced candidate allocations and amount facts | `candidates()`, `amount_facts()`, `fx_verified()` | Deterministic `Decimal` math only | `TXN-01-002` is verified as a multi-invoice sum before any model routing |
+| 4. Reason exceptions | Grounded entity result, candidates, and deterministic facts become a route, confidence, and analyst rationale | `reason()`, `deterministic_policy()`, `enforce_auto_post_safety()` | GPT-5.6 judges ambiguity. Policy and safety enforcement are hard gates. | `TXN-03-001` is compliance-held even if the model would otherwise recommend posting |
+| 5. Create postings | Final safe route and verified allocation become a posting instruction and SSE result | `run_pipeline()` | Deterministic | `TXN-01-001` emits a posting only after the exact allocation is verified |
 
 ## How agents communicate
 
 `POST /analyze` in `backend/main.py` creates a run ID and consumes the async generator `run_pipeline()`. Each yielded event is serialized as an SSE `data:` message. The frontend reads that stream in `frontend/app/page.js` and marks stage badges complete or appends a posting card.
 
-```text
-Dashboard → POST /analyze
-  ← normalize: started / complete / entity_resolved
-  ← ledger_index: started / complete
-  ← match: complete (per transaction)
-  ← posting: complete (per transaction, with result card)
-  ← exception_reasoning: complete
-  ← complete (all results)
-```
+The frontend sends a `POST /analyze` request. The backend responds with SSE messages in this order:
+
+1. `normalize` starts and completes. Each entity-resolution result is also reported.
+2. `ledger_index` starts and completes.
+3. `match` completes for each transaction.
+4. `posting` completes for each transaction and carries the result card data.
+5. `exception_reasoning` completes after all routing decisions are final.
+6. `complete` carries the full result collection.
 
 Within the pipeline, each stage passes structured Python dictionaries to the next stage. The model receives only the current payment, ledger-grounded entity context, verified candidates, and deterministic amount facts; it never receives authority to create a new allocation.
 
@@ -64,7 +55,7 @@ The standard OpenAI Python SDK calls `AsyncOpenAI.responses.create(model="gpt-5.
 
 #### Worked safety example: unsafe auto-post prevention
 
-An earlier defect allowed GPT-5.6 to recommend `auto_post` when no verified invoice was available. The root cause was that `PARTIAL` invoices were excluded from matching and the model route had no final allocation gate. The fix makes remaining balances on `PARTIAL` invoices eligible and forces every model `auto_post` recommendation to `review` unless a deterministic candidate has at least 95% confidence. Regression tests cover this case; all ten samples were audited with no unsafe auto-post remaining.
+An earlier defect allowed GPT-5.6 to recommend `auto_post` when no verified invoice was available. The root cause was that `PARTIAL` invoices were excluded from matching and the model route had no final allocation gate. The fix makes remaining balances on `PARTIAL` invoices eligible and forces every model `auto_post` recommendation to `review` unless a deterministic candidate has at least 95 percent confidence. Regression tests cover this case; all ten samples were audited with no unsafe auto-post remaining.
 
 ## Edge-case coverage (34 total)
 
@@ -118,8 +109,8 @@ The original category counts total 34 scenarios. All are represented with synthe
 
 | Scenario | Sample transaction |
 | --- | --- |
-| No remittance → FIFO match | `TXN-01-005` |
-| Vague remittance → amount match | `TXN-07-002` |
+| No remittance followed by FIFO match | `TXN-01-005` |
+| Vague remittance followed by amount match | `TXN-07-002` |
 | PO number reference | `TXN-01-006` |
 | Legacy ERP invoice number | `TXN-07-003` |
 | EDI 820 remittance pending | `TXN-07-004` |
@@ -170,13 +161,7 @@ The current demo enforces the routing payment allowlist and uses masked server l
 
 ## Deployment architecture
 
-```text
-Browser
-  → Vercel: Next.js dashboard
-       → hosted FastAPI backend
-            → OpenAI API (GPT-5.6)
-            → SQLite audit file
-```
+The browser loads the Next.js dashboard from Vercel. The dashboard calls the hosted FastAPI backend. The backend calls the OpenAI API for GPT-5.6 judgment and writes the local SQLite audit file.
 
 - The frontend is deployed to Vercel. `NEXT_PUBLIC_API_URL` targets the backend; `BACKEND_URL` supports the Next.js `/api` rewrite.
 - The backend is deployed to Railway from `backend/`. Its Docker command binds Uvicorn to `0.0.0.0:$PORT`; `/health` is the health endpoint.
@@ -186,18 +171,7 @@ Browser
 
 The deployed demo intentionally keeps its append-only SQLite journal because it is simple, inspectable, and appropriate for a single-instance synthetic demonstration. It is not presented as the final enterprise persistence design: local container storage can be lost during replacement, and SQLite is not suitable for concurrent multi-instance write workloads or independently tamper-evident retention.
 
-An enterprise deployment should preserve the same deterministic/GPT-5.6/hard-gate pipeline while replacing the surrounding operational components:
-
-```text
-ERP / bank / remittance integrations
-  → authenticated ingestion API and validation queue
-  → stateless reconciliation workers
-       → GPT-5.6 through approved OpenAI controls
-       → managed relational audit store (append-only role + backups)
-       → immutable retention copy / WORM archive
-  → ERP posting workflow and human exception queue
-  → monitoring, alerting, reconciliation controls, and DR testing
-```
+An enterprise deployment should preserve the same deterministic and GPT-5.6 hard-gate pipeline while replacing the surrounding operational components. It would use authenticated ERP, bank, and remittance integrations with a validation queue. Stateless reconciliation workers would call GPT-5.6 through approved OpenAI controls and write to a managed relational audit store with append-only permissions and backups. The design would also include immutable retention, an ERP posting workflow, a human exception queue, monitoring, alerting, reconciliation controls, and disaster recovery testing.
 
 | Concern | Enterprise target |
 | --- | --- |
@@ -220,4 +194,4 @@ This roadmap does not change the core allocation logic: deterministic code conti
 
 ## Positioning alongside ERP cash application
 
-SAP and Oracle Fusion already automate easy exact matches. Ledger Sense is not a replacement for an ERP ledger or workflow. It is a reasoning layer for the ambiguous minority of payments—factoring relationships, DBA aliases, truncated names, uncertain remittance, and similar cases—that otherwise enter a manual exception queue. It provides a grounded rationale and audit traceability while deterministic controls keep financial allocation and policy enforcement safe.
+SAP and Oracle Fusion already automate easy exact matches. Ledger Sense is not a replacement for an ERP ledger or workflow. It is a reasoning layer for the ambiguous minority of payments, including factoring relationships, DBA aliases, truncated names, uncertain remittance, and similar cases that otherwise enter a manual exception queue. It provides a grounded rationale and audit traceability while deterministic controls keep financial allocation and policy enforcement safe.

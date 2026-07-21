@@ -1,104 +1,96 @@
 # Ledger Sense
 
-An OpenAI/GPT-5.6 demo that reconciles synthetic bank payments against open AR and produces auditable posting instructions.
+Ledger Sense is an OpenAI and GPT-5.6 demo for reconciling synthetic bank payments against open accounts receivable. It helps an AR team understand who paid, what can safely be applied, and what needs a person to review.
 
-**Live demo:** [frontend-jade-nu-15.vercel.app](https://frontend-jade-nu-15.vercel.app)
+Live demo: [frontend-jade-nu-15.vercel.app](https://frontend-jade-nu-15.vercel.app)
 
-**Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Architecture reference: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-The production demo uses a hosted FastAPI backend. Its OpenAI key is stored only as a deployment environment variable; it is never committed to this repository.
+## Why Ledger Sense exists
 
-## Why this isn't just another cash application module
+Most ERP cash application tools handle the straightforward work well. They can match a known customer, an exact invoice reference, and an exact amount. The difficult payments are different. A bank statement may contain a shortened payer name, a DBA name, a parent company, a factoring agent, a partial payment, or a disputed invoice.
 
-Modern ERPs such as SAP and Oracle Fusion already automate the easy matches: exact invoice references, exact amounts, and known customers. Where they struggle is the ambiguous 15–20% of payments that require real judgment—factoring relationships, DBA aliases, truncated names, and other cases that do not fit a pre-configured rule. Those cases typically land in a manual exception queue with little explanation of why.
+Those cases often become a manual exception queue. The analyst has to interpret messy context, check the numbers, understand policy, and leave a record of why the payment was handled a certain way.
 
-Ledger Sense is built specifically for that gap. Instead of a fixed rule engine, GPT-5.6 reasons through ambiguous cases the way an experienced AR analyst would and explains every decision in plain language. It is not a replacement for an ERP ledger or workflow; it is designed to sit alongside one, resolving the cases that traditional rule-based matching cannot confidently handle with full audit traceability.
+Ledger Sense is built for that gap. GPT-5.6 helps interpret the ambiguity. Deterministic Python code verifies the financial math. Hard policy gates make sure a model recommendation cannot bypass a compliance hold or create an unsafe posting.
 
-## The problem
+## What the application does
 
-Cash application is rarely an exact invoice-number lookup. A bank deposit may have a truncated payer name, a DBA or parent-company name, a factoring intermediary, multiple invoices in one payment, a partial amount, or a disputed invoice. Compliance holds add another constraint: a plausible match must still not post automatically.
+The application runs five stages for each payment.
 
-These cases force finance teams to combine data cleanup, accounting math, policy checks, and judgment—often manually.
+1. Normalize payments. The backend validates amounts and currencies, standardizes payment data, and asks GPT-5.6 to resolve ambiguous payer and entity names from the supplied ledger catalog.
+2. Index open AR. The backend prepares invoices, aliases, relationships, purchase orders, currencies, and invoice status for matching.
+3. Verify candidate matches. Python `Decimal` code evaluates exact, partial, multi-invoice, discount, credit memo, fee, and FX cases.
+4. Reason about exceptions. GPT-5.6 receives grounded evidence and produces a route and an analyst-readable rationale.
+5. Create posting instructions. The backend emits a posting only after deterministic allocation and policy checks pass.
 
-## How it works
+The dashboard shows the raw bank statement beside the open AR ledger. It streams each stage in real time and then shows the final posting decision, entity resolution, confidence, and rationale for every transaction.
 
-The pipeline runs five sequential stages:
+## Safety and auditability
 
-1. **Normalize payments** — validates amounts and currencies, standardizes payer names, and extracts remittance references.
-2. **Index open AR** — prepares invoice, customer, alias, PO, currency, and status data for matching.
-3. **Verify candidates** — code evaluates exact, partial, and multi-invoice candidates using Python `Decimal`; allocations must balance exactly.
-4. **Reason about exceptions** — GPT-5.6 receives only pre-validated ambiguous candidates and returns a structured route: auto-post, review, dispute, or compliance hold.
-5. **Generate postings** — emits posting instructions only after deterministic allocation and policy checks pass.
+Financial math stays in deterministic code. A language model must not invent an invoice allocation, accept an incorrect amount, or silently approve a rounding difference.
 
-### Architecture Notes
+GPT-5.6 is used where language judgment is useful. It resolves ambiguous payer identities, considers DBA and factoring relationships, and explains the safest route for a case.
 
-Financial math stays in deterministic code because a model must never invent an invoice allocation, exchange an amount, or silently accept a rounding error. GPT-5.6 contributes judgment where it is useful: explaining ambiguous evidence and choosing the safest operational route.
+The backend enforces hard gates. An auto-post requires a code-verified allocation with at least 95 percent confidence. Compliance and legal holds, disputed invoices, duplicates, NSF returns, post-dated checks, and stale checks are enforced in code.
 
-The SQLite audit journal is append-only. Each input, candidate set, model decision, policy override, and posting instruction becomes a new event; database triggers reject updates and deletes. That preserves the traceability and control history a real AR team needs for review and compliance.
-
-### Architecture reference
-
-For the full current design, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The implementation source of truth is [`backend/reconciliation.py`](backend/reconciliation.py): it contains the five-stage async pipeline, deterministic matching, GPT-5.6 prompts, routing hard gates, and the append-only SQLite audit journal. [`backend/main.py`](backend/main.py) exposes the FastAPI/SSE endpoints, while [`frontend/app/page.js`](frontend/app/page.js) consumes SSE events and renders the input, ledger, and posting-decision views.
-
-The runtime flow is: **Next.js dashboard → `POST /analyze` → FastAPI SSE stream → five-agent pipeline → SQLite audit events → posting instructions displayed in the dashboard**. GPT-5.6 is used only for entity resolution and judgment/routing; code verifies all financial math and enforces the final safety controls.
-
-The demo uses SQLite for its inspectable append-only journal. [The architecture reference](docs/ARCHITECTURE.md#enterprise-production-target-state) also documents the enterprise target state: managed audit persistence, immutable retention, stateless workers, security controls, integrations, and operational resilience.
-
-### Demo observability
-
-During a live run, server logs contain concise GPT-5.6 call and response events, such as the transaction ID, a masked payer preview, the resolved relationship, route, and confidence. Logs deliberately exclude full payer names, remittance details, prompts, response bodies, and secrets.
+Every stage appends an event to the SQLite audit journal. Database triggers reject updates and deletes, so the journal preserves the decision history needed for review and compliance.
 
 ## How Codex was used
 
-This project was built with Codex under explicit product direction.
+This project was built with Codex under clear product direction. You set the OpenAI-only stack, the GPT-5.6 requirement, the AR reconciliation domain, the append-only local audit trail, and the division between deterministic matching and model judgment.
 
-You directed the OpenAI-only stack, GPT-5.6 usage, the AR reconciliation domain, the need for an append-only local audit trail, and the distinction between deterministic matching and model judgment. You also required an honest reset after an earlier implementation followed old Azure-oriented patterns.
+Codex helped turn those requirements into a five-stage system. It designed the detailed boundary between code and model reasoning, used `Decimal` arithmetic for financial allocations, built the SSE flow, created synthetic data, and shaped the dashboard.
 
-Codex independently chose the detailed deterministic-vs-model boundary, the five-stage sequencing, `Decimal` arithmetic for allocations, SQLite triggers to enforce append-only audit records, confidence scoring, the SSE event shape, and the compact before/after dashboard. It also designed the ledger-grounded GPT-5.6 entity-resolution prompt: payer names are resolved only against the supplied customer and alias catalog, with a proposed relationship, confidence, and rationale. GPT-5.6 also generates the analyst-readable routing rationale displayed for every result.
+The work also included real verification. An early implementation followed patterns from an unrelated project and was deliberately discarded. The rebuilt version uses the standard OpenAI Python SDK only. Testing uncovered an unsafe auto-post path, an environment variable loading issue, confidence calibration drift, a false compliance match, and entity mapping gaps. Each problem was fixed with deterministic safeguards and regression tests.
 
-Verification caught two real defects: a deliberately weak-evidence payer was correctly unresolved but initially received 99% confidence, so Codex added explicit evidence bands to the prompt and caps unresolved results at 35%; and a simplistic `HOLD` string check misclassified `OMEGA GLOBAL HOLDINGS` as a compliance hold, so it now recognizes only explicit compliance, sanctions, or legal hold phrases.
+The final audit script checks all 83 transactions across the ten synthetic datasets for badge consistency, routing safety, policy accuracy, and unsafe auto-posts.
 
-Verification also exposed a critical posting-safety gap: GPT-5.6 could recommend `auto_post` without a verified deterministic match. The root cause was twofold—partially paid invoices were excluded from matching even when they retained an open balance, and the routing layer had no safety gate on the model recommendation. Codex made `PARTIAL` invoices matchable against their remaining balance and now permits auto-posting only after a ≥95% deterministic allocation verification; every unsafe model recommendation is forced to `review`. An adversarial audit of all 10 sample datasets now reports zero unsafe auto-posts.
+## Data privacy
 
-Codex accelerated repository cleanup, backend and frontend implementation, dependency setup, synthetic-data verification, SSE testing, and fresh-clone setup validation. The first implementation attempt did draw on prior patterns in this workspace; it was deliberately discarded at your direction and rebuilt independently with the standard OpenAI SDK only.
+The model receives only the fields needed for its task. Entity resolution receives the raw payer, remittance, and a limited customer identity catalog. Routing receives a fixed allowlist of payment fields, the entity result, verified candidate facts, and deterministic amount facts.
 
-## Quick Start
+Account numbers, routing numbers, tax IDs, arbitrary upstream fields, full ledger records, and full invoice records are not sent by default. A regression test confirms that injected sensitive fields stay out of the GPT-5.6 routing payload.
+
+OpenAI API inputs and outputs are not used for model training by default. See [OpenAI API data controls](https://platform.openai.com/docs/models/default-usage-policies-by-endpoint) and [OpenAI business data privacy](https://openai.com/business-data/).
+
+## Quick start
 
 Prerequisites:
 
-- Python 3.11+
-- Node.js 18+
-- An OpenAI API key for live GPT-5.6 exception reasoning
+1. Python 3.11 or later
+2. Node.js 18 or later
+3. An OpenAI API key for live GPT-5.6 entity resolution and exception reasoning
 
-Clone and start the backend:
+Clone the repository and start the backend.
 
 ```bash
 git clone https://github.com/vinaygangidi/ledger-sense.git
-cd cash-reconciliation-codex/backend
+cd ledger-sense/backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env and set OPENAI_API_KEY=...
+# Edit .env and set OPENAI_API_KEY
 uvicorn main:app --reload --port 8000
 ```
 
-In a second terminal, start the frontend:
+In a second terminal, start the frontend.
 
 ```bash
-cd cash-reconciliation-codex/frontend
+cd ledger-sense/frontend
 npm install
 NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The synthetic demo works without an API key for deterministic matching. Without a key, ambiguous cases safely route to human review; set `OPENAI_API_KEY` to enable GPT-5.6 exception routing.
+The synthetic demo also works without an API key for deterministic matching. Without a key, ambiguous cases safely route to human review. Set `OPENAI_API_KEY` to enable live GPT-5.6 judgment.
 
-## Sample data / demo
+## Demo data
 
-The repository includes ten synthetic bank-statement and open-AR datasets under `backend/data/samples/`. No real financial data is included.
+The repository contains ten synthetic bank-statement and open-AR datasets in `backend/data/samples/`. No real financial data is included.
 
-The dashboard loads sample 04 by default and includes a **Demo dataset** picker for all ten scenarios. Click **Run synthetic demo** to see each stage progress in real time, compare raw bank payments with reconciled posting decisions, and inspect the resulting audit run through the backend API.
+The dashboard loads sample 04 by default and includes a dataset picker for all ten scenarios. Run a synthetic demo to see stage progress, compare incoming payments with the internal ledger, and inspect the final posting decisions.
 
-A judge will see verified invoice allocations for high-confidence matches, safe review routing for unresolved cases, and a clear record of why each decision was made.
+The data covers 34 real-world cash application scenarios, including exact and multi-invoice matches, discounts, partial payments, parent and subsidiary relationships, factoring, identity aliases, duplicate payments, stale checks, compliance holds, disputes, and FX verification.
