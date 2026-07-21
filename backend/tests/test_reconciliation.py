@@ -174,6 +174,23 @@ class EntityResolutionTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("Ledger alias registry documents CONTINENTAL WIRE & CABLE as ALIAS for Global Cable Systems LLC.", result["rationale"])
 
+    async def test_documented_parent_name_maps_to_canonical_child_customer(self):
+        class FakeResponses:
+            async def create(self, **_):
+                return type("Response", (), {"output_text": '{"resolved_entity":"Nexus Parent Corp","relationship":"parent_paying","confidence":0.99,"rationale":"Nexus Parent Corp is the documented parent payer for Nexus Midwest LLC."}'})()
+
+        catalog = [{
+            "customer_name": "Nexus Midwest LLC", "customer_id": "CUST-04-005",
+            "aliases": ["Nexus Parent Corp"], "relationships": ["PARENT_PAYS_CHILD"], "ledger_notes": ["Parent Nexus Parent Corp will pay on behalf"],
+        }]
+        client = type("FakeClient", (), {"responses": FakeResponses()})()
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}), patch("reconciliation.AsyncOpenAI", return_value=client):
+            result = await resolve_entity({"txn_id": "TXN-04-004", "payer_raw": "NEXUS PARENT CORP", "remittance": "INV-04-005"}, catalog)
+
+        self.assertEqual(result["resolved_entity"], "Nexus Midwest LLC")
+        self.assertEqual(result["confidence"], 0.99)
+        self.assertIn("Nexus Parent Corp is the documented parent payer", result["rationale"])
+
 
 class EdgeCaseCoverageTests(unittest.TestCase):
     def sample(self, sample_id):

@@ -105,6 +105,12 @@ async def resolve_entity(payment, catalog):
         if not result: raise ValueError("empty JSON")
         allowed = {c["customer_name"] for c in catalog}
         by_id = {c["customer_id"]: c["customer_name"] for c in catalog}
+        by_documented_name = {
+            name(documented_name): customer["customer_name"]
+            for customer in catalog
+            for documented_name in [customer["customer_name"], *customer["aliases"]]
+            if documented_name
+        }
         entity = result.get("resolved_entity")
         if isinstance(entity, dict):
             entity = entity.get("customer_id") or entity.get("customer_name")
@@ -113,7 +119,9 @@ async def resolve_entity(payment, catalog):
         elif entity in allowed:
             result["resolved_entity"] = entity
         else:
-            result["resolved_entity"] = None
+            # GPT may return a documented parent payer or alias rather than the
+            # canonical child/customer name. Map only ledger-supplied names.
+            result["resolved_entity"] = by_documented_name.get(name(entity)) if isinstance(entity, str) else None
         relationship = result.get("relationship", "unresolved")
         confidence = float(result.get("confidence", 0))
         if result.get("resolved_entity") is None or relationship == "unresolved":
