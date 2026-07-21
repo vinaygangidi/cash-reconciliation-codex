@@ -73,7 +73,7 @@ Prerequisites:
 Clone and start the backend:
 
 ```bash
-git clone https://github.com/vinaygangidi/cash-reconciliation-codex.git
+git clone https://github.com/vinaygangidi/ledger-sense.git
 cd cash-reconciliation-codex/backend
 python3 -m venv .venv
 source .venv/bin/activate
